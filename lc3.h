@@ -1,64 +1,95 @@
 /* lc3.h */
 /* Architecture for assembling/simulating an LC3 computer. */
 
+#ifndef _LC3_H_
+#define _LC3_H_
+
+//#define DEBUG
+
+#ifdef DEBUG
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...)
+#endif
+
 #define REG_COUNT (8)
+#define MEM_SIZE (0x10000)
 
 typedef unsigned char REG; /* 0-7 */
+typedef signed short WORD;
+typedef unsigned short UWORD;
+typedef unsigned char BYTE;
 
 typedef enum { FALSE = 0, TRUE = 1 } BOOL;
 
+/* Possible lc3b instructions. */
 typedef enum {
-	OP_ADD,
-	OP_ADD_IMM,
-	OP_AND,
-	OP_AND_IMM,
 	OP_BR,
-	OP_JMP,
+	OP_ADD,
+	OP_LDB,
+	OP_STB,
 	OP_JSR,
-	OP_JSRR,
-	OP_LD,
-	OP_LDI,
-	OP_LDR,
-	OP_LEA,
-	OP_XOR,
-	OP_XOR_IMM,
+	OP_AND,
+	OP_LDW,
+	OP_STW,
 	OP_RTI,
-	OP_ST,
-	OP_STI,
-	OP_STR,
+	OP_XOR,
+	OP_UNUSED0,
+	OP_UNUSED1,
+	OP_JMP,
+	OP_SHF,
+	OP_LEA,
 	OP_TRAP
 } INST_ID;
+
+extern char *opcode_str[16];
 
 /* Bit stuff for decoding */
 #define EXT_BITS(i,h,l)	((i)>>(l) & (1 << (h)-(l)+1) - 1)
 #define EXT_BIT(i,l)	EXT_BITS((i),(l),(l))
-#define SEXT(w, i)		(EXT_BIT((w),(i)-1) * (-1<<(i))+(w))
+#define SEXT(w, i)		(EXT_BIT((w),(i)-1) * (-1 << (i)) | \
+							EXT_BITS((w),(i-1),0))
 #define ZEXT(w, i)		EXT_BITS((w),(i)-1,0)
 
 /* Dependency masks */
-#define DM_SR1	(1 << 0) /* Reads SR1 */
-#define DM_SR2	(1 << 1) /* Reads SR2 */
-#define DM_DR	(1 << 2) /* Writes DR */
-#define DM_WCC	(1 << 3) /* Writes condition codes */
-#define DM_RCC	(1 << 4) /* Reads condition codes */
-#define DM_PC	(1 << 5) /* Writes PC */
-#define DM_RM	(1 << 6) /* Reads from mem */
-#define DM_WM	(1 << 7) /* Writes to mem */
+#define DM_SR1	(0x01) /* Reads SR1 */
+#define DM_SR2	(0x02) /* Reads SR2 */
+#define DM_DR	(0x04) /* Writes DR */
+#define DM_WCC	(0x08) /* Writes condition codes */
+#define DM_RCC	(0x10) /* Reads condition codes */
+#define DM_PC	(0x20) /* Writes PC */
+#define DM_RM	(0x40) /* Reads from mem */
+#define DM_WM	(0x80) /* Writes to mem */
 
 typedef struct INST {
 	unsigned int inst;
 	INST_ID opcode;
+
+	/* Decoded inst. info */
 	REG src_reg_1;
 	REG src_reg_2;
 	REG dst_reg;
-	unsigned int mem_ptr; /* pc+off or baser+off */
-	signed int imm; /* sign extended */
-	signed short result;
+	UWORD mem_ptr; /* pc+off or baser+off */
+	WORD imm; /* sign extended */
+	BOOL has_imm;
+
+	/* Read inst. info */
+	WORD op_1;
+	WORD op_2;
+
+	/* Write inst. info */
+	WORD result;
 
 	/* Dependency stuff. */
 	unsigned int dep_mask;
 	BOOL mem_ptr_known;
 	BOOL done;
+
+	/* DFA bookkeeping: the cycle when each stage of the instruction was done. */
+	int fetch_cycle;
+	int read_cycle;
+	int exec_cycle;
+	int write_cycle;
 } INST;
 
 /* Pipeline. */
@@ -81,6 +112,19 @@ typedef struct {
 	unsigned int mem_dep[PL_SIZE]; /* An inst. is modifying this loc. */
 } PIPELINE;
 
+#define REGISTER(x)		(s->reg[x])
+#define MEMORY(x)		(s->mem[x])
+
 typedef struct {
-	unsigned int PC;
+	UWORD PC;
+	WORD PSR;
+	WORD reg[REG_COUNT];
+	BYTE mem[MEM_SIZE];
+
+	BOOL halt;
 } STATUS;
+
+/* Prototypes */
+void run(STATUS *s, PIPELINE *pl);
+
+#endif
