@@ -1,13 +1,12 @@
-ARCH_FILES=fetch read exec write main
+FILES=fetch read exec write main dep
 
-LATCH_FILES=${ARCH_FILES} sim_latch dep_latch
-DFA_FILES=${ARCH_FILES} sim_dfa dep_dfa
+CFILES=${addsuffix .c, ${FILES}}
 
-LATCH_CFILES=${addsuffix .c, ${LATCH_FILES}}
-DFA_CFILES=${addsuffix .c, ${DFA_FILES}}
+event: ${CFILES} sim_event.c lc3.h
+	cc -g ${CFILES} sim_event.c
 
-dfa: ${DFA_CFILES} lc3.h
-	cc -g ${DFA_CFILES}
+dfa: ${CFILES} sim_dfa.c lc3.h
+	cc -g ${CFILES} sim_dfa.c
 
-latch: ${LATCH_CFILES} lc3.h
-	cc -g ${LATCH_CFILES}
+latch: ${CFILES} sim_latch.c lc3.h
+	cc -g ${CFILES} sim_latch.c

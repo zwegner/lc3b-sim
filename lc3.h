@@ -4,7 +4,7 @@
 #ifndef _LC3_H_
 #define _LC3_H_
 
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #define DEBUG_PRINT(...) printf(__VA_ARGS__)
@@ -43,6 +43,8 @@ typedef enum {
 } INST_ID;
 
 extern char *opcode_str[16];
+
+typedef enum { PL_FETCH, PL_READ, PL_EXEC, PL_WRITE, PL_SIZE } PL_STAGE;
 
 /* Bit stuff for decoding */
 #define EXT_BITS(i,h,l)	((i)>>(l) & (1 << (h)-(l)+1) - 1)
@@ -86,14 +88,8 @@ typedef struct INST {
 	BOOL done;
 
 	/* DFA bookkeeping: the cycle when each stage of the instruction was done. */
-	int fetch_cycle;
-	int read_cycle;
-	int exec_cycle;
-	int write_cycle;
+	int stage_cycle[PL_SIZE];
 } INST;
-
-/* Pipeline. */
-#define PL_SIZE		(4) /* Only 4 stages of LC3 instruction */
 
 typedef struct {
 	INST pipeline[PL_SIZE];
